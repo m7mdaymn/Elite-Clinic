@@ -1,8 +1,8 @@
 # SWAGGER_DOCUMENTATION.md — API Reference (Human-Readable)
 
-> **Version:** 4.0  
+> **Version:** 5.0  
 > **Last Updated:** 2026-02-07  
-> **Status:** Phase 1, 2, 3 & 4 Complete (105 Endpoints)  
+> **Status:** All 5 Phases Complete (109 Endpoints)  
 > **Swagger URL:** `https://{host}/swagger` (Available in ALL environments including production)
 
 ---
@@ -2028,6 +2028,8 @@
 
 ### GET `/api/public/{slug}/clinic`
 - **Description:** Get public clinic profile by tenant slug
+- **Response 200:** Clinic profile data
+- **Response 404:** Returns `{"success": false, "message": "Clinic not found"}` when slug is invalid or tenant not found
 - **Response:**
 ```json
 {
@@ -2046,15 +2048,18 @@
 
 ### GET `/api/public/{slug}/doctors`
 - **Description:** List active doctors for a clinic (public)
-- **Response:** `data` is array of `PublicDoctorDto` with name, specialty, bio, photoUrl, services[]
+- **Response 200:** `data` is array of `PublicDoctorDto` with name, specialty, bio, photoUrl, services[]
+- **Response 404:** Clinic not found
 
 ### GET `/api/public/{slug}/services`
 - **Description:** List active services for a clinic (public)
-- **Response:** `data` is array of `PublicDoctorServiceDto` with serviceName, price, durationMinutes, doctorName
+- **Response 200:** `data` is array of `PublicDoctorServiceDto` with serviceName, price, durationMinutes, doctorName
+- **Response 404:** Clinic not found
 
 ### GET `/api/public/{slug}/working-hours`
 - **Description:** Get working hours for a clinic (public)
-- **Response:** `data` is array of `PublicWorkingHourDto` with dayOfWeek, startTime, endTime, isOpen
+- **Response 200:** `data` is array of `PublicWorkingHourDto` with dayOfWeek, startTime, endTime, isOpen
+- **Response 404:** Clinic not found
 
 ---
 
@@ -2073,12 +2078,13 @@
 {
   "doctorId": "guid",
   "doctorServiceId": "guid (optional)",
+  "patientId": "guid (optional, for staff booking on behalf of patient)",
   "bookingDate": "2026-03-01",
   "bookingTime": "09:00",
   "notes": "optional"
 }
 ```
-- **Validations:** Future date, doctor exists, no duplicate (same doctor+date+time), booking enabled in clinic settings
+- **Validations:** Future date, doctor exists, no duplicate (same doctor+date+time), booking enabled in clinic settings. `patientId` is required for staff/manager/receptionist workflows.
 - **Response:** `BookingDto` with status `Confirmed`
 
 ### POST `/api/clinic/bookings/{id}/cancel`

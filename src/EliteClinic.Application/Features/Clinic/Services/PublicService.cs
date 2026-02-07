@@ -22,7 +22,7 @@ public class PublicService : IPublicService
             .FirstOrDefaultAsync(t => t.Slug == tenantSlug && !t.IsDeleted);
 
         if (tenant == null)
-            return ApiResponse<PublicClinicDto>.Ok(null!, "Clinic not found");
+            return ApiResponse<PublicClinicDto>.Error("Clinic not found");
 
         var settings = await _context.ClinicSettings.IgnoreQueryFilters()
             .FirstOrDefaultAsync(cs => cs.TenantId == tenant.Id && !cs.IsDeleted);
@@ -50,7 +50,7 @@ public class PublicService : IPublicService
             .FirstOrDefaultAsync(t => t.Slug == tenantSlug && !t.IsDeleted);
 
         if (tenant == null)
-            return ApiResponse<List<PublicDoctorDto>>.Ok(new List<PublicDoctorDto>(), "Clinic not found");
+            return ApiResponse<List<PublicDoctorDto>>.Error("Clinic not found");
 
         var doctors = await _context.Doctors.IgnoreQueryFilters()
             .Include(d => d.Services)
@@ -84,7 +84,7 @@ public class PublicService : IPublicService
             .FirstOrDefaultAsync(t => t.Slug == tenantSlug && !t.IsDeleted);
 
         if (tenant == null)
-            return ApiResponse<List<PublicDoctorServiceDto>>.Ok(new List<PublicDoctorServiceDto>(), "Clinic not found");
+            return ApiResponse<List<PublicDoctorServiceDto>>.Error("Clinic not found");
 
         var services = await _context.DoctorServices.IgnoreQueryFilters()
             .Where(ds => ds.TenantId == tenant.Id && !ds.IsDeleted && ds.IsActive)
@@ -107,7 +107,7 @@ public class PublicService : IPublicService
             .FirstOrDefaultAsync(t => t.Slug == tenantSlug && !t.IsDeleted);
 
         if (tenant == null)
-            return ApiResponse<List<PublicWorkingHourDto>>.Ok(new List<PublicWorkingHourDto>(), "Clinic not found");
+            return ApiResponse<List<PublicWorkingHourDto>>.Error("Clinic not found");
 
         var settings = await _context.ClinicSettings.IgnoreQueryFilters()
             .Include(cs => cs.WorkingHours)

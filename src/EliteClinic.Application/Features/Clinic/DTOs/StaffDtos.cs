@@ -33,6 +33,11 @@ public class CreateStaffRequest
     [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be 6-100 characters")]
     public string Password { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Staff role: "ClinicManager" or "Receptionist". Defaults to "ClinicManager" if not specified.
+    /// </summary>
+    public string? Role { get; set; }
+
     [StringLength(20)]
     public string? Phone { get; set; }
 

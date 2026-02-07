@@ -523,7 +523,8 @@ public class EliteClinicDbContext : IdentityDbContext<ApplicationUser, Applicati
             if (action == null)
                 return null;
 
-            var userId = _tenantContext?.TenantId;
+            var userIdStr = _tenantContext?.UserId;
+            Guid? userId = !string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var uid) ? uid : _tenantContext?.TenantId;
             var tenantId = entry.Entity is TenantBaseEntity tenantEntity ? tenantEntity.TenantId : _tenantContext?.TenantId;
 
             var auditLog = new AuditLog(

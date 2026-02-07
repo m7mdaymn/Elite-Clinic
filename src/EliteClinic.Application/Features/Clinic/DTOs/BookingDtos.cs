@@ -26,6 +26,11 @@ public class BookingDto
 
 public class CreateBookingRequest
 {
+    /// <summary>
+    /// Optional: For staff/owner creating a booking on behalf of a patient.
+    /// If omitted, the authenticated user's patient profile is used.
+    /// </summary>
+    public Guid? PatientId { get; set; }
     public Guid DoctorId { get; set; }
     public Guid? DoctorServiceId { get; set; }
     public DateTime BookingDate { get; set; }

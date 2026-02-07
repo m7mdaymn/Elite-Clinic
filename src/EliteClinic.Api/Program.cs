@@ -194,6 +194,21 @@ app.UseMiddleware<EliteClinic.Infrastructure.Middleware.TenantMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Set authenticated user ID into TenantContext for audit trail
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        var tc = context.RequestServices.GetService<EliteClinic.Infrastructure.Services.ITenantContext>()
+                 as EliteClinic.Infrastructure.Services.TenantContext;
+        if (tc != null)
+        {
+            tc.UserId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        }
+    }
+    await next();
+});
+
 app.MapControllers();
 
 app.Run();
@@ -204,7 +219,7 @@ async Task SeedDataAsync(EliteClinicDbContext dbContext, IServiceProvider servic
     var roleManager = serviceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
 
     // Seed roles
-    var roles = new[] { "SuperAdmin", "ClinicOwner", "ClinicManager", "Doctor", "Patient" };
+    var roles = new[] { "SuperAdmin", "ClinicOwner", "ClinicManager", "Receptionist", "Doctor", "Patient" };
     foreach (var role in roles)
     {
         if (!await roleManager.RoleExistsAsync(role))

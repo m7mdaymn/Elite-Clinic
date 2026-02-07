@@ -42,7 +42,13 @@ public class StaffService : IStaffService
             return ApiResponse<StaffDto>.ValidationError(errors, "Failed to create user account");
         }
 
-        await _userManager.AddToRoleAsync(user, "ClinicManager");
+        // Determine role (default to ClinicManager)
+        var validRoles = new[] { "ClinicManager", "Receptionist" };
+        var role = !string.IsNullOrWhiteSpace(request.Role) && validRoles.Contains(request.Role, StringComparer.OrdinalIgnoreCase)
+            ? request.Role
+            : "ClinicManager";
+
+        await _userManager.AddToRoleAsync(user, role);
 
         // Create Employee entity
         var employee = new Employee
@@ -51,7 +57,7 @@ public class StaffService : IStaffService
             UserId = user.Id,
             Name = request.Name,
             Phone = request.Phone,
-            Role = "ClinicManager",
+            Role = role,
             Salary = request.Salary,
             HireDate = request.HireDate,
             Notes = request.Notes,

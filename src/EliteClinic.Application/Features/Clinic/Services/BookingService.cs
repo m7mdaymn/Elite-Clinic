@@ -30,9 +30,18 @@ public class BookingService : IBookingService
         if (settings == null || !settings.BookingEnabled)
             return ApiResponse<BookingDto>.Error("Booking is not enabled in clinic settings");
 
-        // Find patient by userId
-        var patient = await _context.Patients
-            .FirstOrDefaultAsync(p => p.UserId == patientUserId && p.TenantId == tenantId && !p.IsDeleted && p.IsDefault);
+        // Find patient - either by PatientId (staff workflow) or by patientUserId (patient self-booking)
+        Domain.Entities.Patient? patient;
+        if (request.PatientId.HasValue)
+        {
+            patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.Id == request.PatientId.Value && p.TenantId == tenantId && !p.IsDeleted);
+        }
+        else
+        {
+            patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.UserId == patientUserId && p.TenantId == tenantId && !p.IsDeleted && p.IsDefault);
+        }
         if (patient == null)
             return ApiResponse<BookingDto>.Error("Patient profile not found. Only existing patients can book.");
 

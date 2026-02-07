@@ -1,8 +1,8 @@
 # FRONTEND_CONTRACT.md — API Contract for Frontend Integration
 
-> **Version:** 4.0  
+> **Version:** 5.0  
 > **Last Updated:** 2026-02-07  
-> **Status:** Phase 1, 2, 3 & 4 Complete
+> **Status:** All 5 Phases Complete
 
 ---
 
@@ -716,8 +716,16 @@ PUT /api/platform/feature-flags/{tenantId}
 | **Enums** | `BookingStatus`: Confirmed, Cancelled, Rescheduled, Completed. `MessageChannel`: WhatsApp, PWA. `MessageStatus`: Pending, Sending, Sent, Delivered, Read, Failed, Retrying. All serialize as strings. |
 | **Feature flag checks** | Before showing booking UI, check `OnlineBooking` flag. Before showing PWA subscribe, check `PwaNotifications` flag. Both accessible via `GET /api/platform/feature-flags/{tenantId}`. |
 
-### Phase 5 — Analytics, Audit & Final
-> Will be expanded when Phase 5 is implemented.
+### Phase 5 — Production Readiness & Final Quality
+
+| Concern | Contract |
+|---------|----------|
+| **Receptionist role** | 6th seeded role. Can create bookings, send messages/notifications, view doctor notes, list bookings. Cannot create doctors, update settings, or manage subscriptions. Use `role` field in `POST /api/clinic/staff` with value `"Receptionist"` (defaults to `"ClinicManager"` if omitted). |
+| **Staff booking workflow** | Staff/Owner/Receptionist creating bookings on behalf of patients must send `patientId` (GUID) in the booking request body. Patient self-booking does NOT need `patientId` (resolved from JWT). |
+| **Public endpoint 404s** | All 4 public endpoints (`/api/public/{slug}/clinic`, `/doctors`, `/services`, `/working-hours`) now return HTTP 404 with `{"success": false, "message": "Clinic not found"}` for invalid slugs, instead of 200 with null data. |
+| **AuditLog accuracy** | Audit logs now correctly record the authenticated user's ID (not the tenant ID). No frontend changes needed. |
+| **Endpoint count** | 109 total endpoints across 23 controllers. All returning standard `ApiResponse<T>` envelope. |
+| **Test coverage** | 351 tests across 4 test suites: Phase 2 (58), Phase 3 (99), Phase 4 (89), Phase 5 (105). |
 
 ---
 

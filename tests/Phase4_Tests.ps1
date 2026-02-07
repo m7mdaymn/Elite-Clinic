@@ -195,19 +195,19 @@ Test "PB09 GET /api/public/slug/working-hours returns list" {
     $r.success -eq $true -and $r.data.Count -ge 0
 }
 
-Test "PB10 Non-existent slug returns success with null data" {
+Test "PB10 Non-existent slug returns 404" {
     $r = Api GET "/api/public/non-existent-clinic/clinic" @{}
-    $r.success -eq $true
+    $r.success -eq $false -and $r.message -eq "Clinic not found"
 }
 
-Test "PB11 Non-existent slug doctors returns empty list" {
+Test "PB11 Non-existent slug doctors returns 404" {
     $r = Api GET "/api/public/non-existent-clinic/doctors" @{}
-    $r.success -eq $true -and $r.data.Count -eq 0
+    $r.success -eq $false -and $r.message -eq "Clinic not found"
 }
 
-Test "PB12 Non-existent slug services returns empty list" {
+Test "PB12 Non-existent slug services returns 404" {
     $r = Api GET "/api/public/non-existent-clinic/services" @{}
-    $r.success -eq $true -and $r.data.Count -eq 0
+    $r.success -eq $false -and $r.message -eq "Clinic not found"
 }
 
 ###############################################################################
