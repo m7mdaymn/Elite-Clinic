@@ -1,0 +1,294 @@
+# REQUESTS_V1.http — Phase 1 API Requests
+# All Phase 1 endpoints with ready-to-run examples
+# Use REST Client extension in VS Code or manually with curl
+
+@baseUrl = http://localhost:5094
+@adminToken = YOUR_TOKEN_HERE
+
+### ===== AUTHENTICATION (Phase 0 - for obtaining token) =====
+
+### Phase 0: SuperAdmin Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "superadmin",
+  "password": "Admin@123456"
+}
+
+### Phase 0: Health Check
+GET {{baseUrl}}/api/health
+
+### ===== TENANT CRUD =====
+
+### TC01: Create Tenant (Valid)
+POST {{baseUrl}}/api/platform/tenants
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Nile Dental Clinic",
+  "slug": "nile-dental",
+  "contactPhone": "+201098765432",
+  "address": "456 Nile Ave, Cairo, Egypt",
+  "logoUrl": "https://example.com/nile-dental-logo.png"
+}
+
+### TC04: Get All Tenants (Paginated)
+GET {{baseUrl}}/api/platform/tenants?pageNumber=1&pageSize=10
+Authorization: Bearer {{adminToken}}
+
+### TC06: Get Tenants with Search
+GET {{baseUrl}}/api/platform/tenants?searchTerm=demo
+Authorization: Bearer {{adminToken}}
+
+### TC07: Get Tenant by ID
+# Replace {tenant-id} with actual tenant ID from creation response
+GET {{baseUrl}}/api/platform/tenants/{tenant-id}
+Authorization: Bearer {{adminToken}}
+
+### TC08: Update Tenant
+# Replace {tenant-id} with actual tenant ID
+PUT {{baseUrl}}/api/platform/tenants/{tenant-id}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Nile Dental Clinic Updated",
+  "contactPhone": "+201098765433",
+  "address": "456 Nile Ave, Suite 200, Cairo, Egypt",
+  "logoUrl": "https://example.com/nile-dental-logo-v2.png"
+}
+
+### TC10: Activate Tenant
+# Replace {tenant-id} with actual tenant ID
+POST {{baseUrl}}/api/platform/tenants/{tenant-id}/activate
+Authorization: Bearer {{adminToken}}
+
+### TC11: Suspend Tenant
+# Replace {tenant-id} with actual tenant ID
+POST {{baseUrl}}/api/platform/tenants/{tenant-id}/suspend
+Authorization: Bearer {{adminToken}}
+
+### TC12: Block Tenant
+# Replace {tenant-id} with actual tenant ID
+POST {{baseUrl}}/api/platform/tenants/{tenant-id}/block
+Authorization: Bearer {{adminToken}}
+
+### TC13: Delete Tenant (Soft Delete)
+# Replace {tenant-id} with actual tenant ID
+DELETE {{baseUrl}}/api/platform/tenants/{tenant-id}
+Authorization: Bearer {{adminToken}}
+
+### ===== TENANT CRUD — VALIDATION TESTS =====
+
+### TV01: Create Tenant with Empty Name (400)
+POST {{baseUrl}}/api/platform/tenants
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "slug": "test-clinic",
+  "contactPhone": "+201234567890"
+}
+
+### TV03: Create Tenant with Uppercase Slug (400)
+POST {{baseUrl}}/api/platform/tenants
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Test Clinic",
+  "slug": "TestClinic",
+  "contactPhone": "+201234567890"
+}
+
+### TV04: Create Tenant with Spaces in Slug (400)
+POST {{baseUrl}}/api/platform/tenants
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Test Clinic",
+  "slug": "test clinic",
+  "contactPhone": "+201234567890"
+}
+
+### TV05: Create Tenant with Special Chars in Slug (400)
+POST {{baseUrl}}/api/platform/tenants
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Test Clinic",
+  "slug": "test@clinic!",
+  "contactPhone": "+201234567890"
+}
+
+### TV06: Create Tenant with Valid Slug (hyphens allowed)
+POST {{baseUrl}}/api/platform/tenants
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Test Clinic 2",
+  "slug": "test-clinic-2",
+  "contactPhone": "+201234567890"
+}
+
+### TV07: Create Tenant with Duplicate Slug (409)
+POST {{baseUrl}}/api/platform/tenants
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Another Demo Clinic",
+  "slug": "demo-clinic",
+  "contactPhone": "+201234567890"
+}
+
+### ===== SUBSCRIPTIONS =====
+
+### SC01: Create Subscription
+# Replace {tenant-id} with demo-clinic tenant ID from seed
+POST {{baseUrl}}/api/platform/subscriptions
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "tenantId": "{tenant-id}",
+  "planName": "Enterprise Annual",
+  "startDate": "2026-02-07T00:00:00Z",
+  "endDate": "2027-02-07T00:00:00Z",
+  "amount": 10000.00,
+  "currency": "EGP",
+  "notes": "Annual enterprise plan with all features"
+}
+
+### SC03: Get All Subscriptions (All Tenants)
+GET {{baseUrl}}/api/platform/subscriptions?pageNumber=1&pageSize=10
+Authorization: Bearer {{adminToken}}
+
+### SC03: Get Subscriptions for Specific Tenant
+# Replace {tenant-id} with actual tenant ID
+GET {{baseUrl}}/api/platform/subscriptions?tenantId={tenant-id}
+Authorization: Bearer {{adminToken}}
+
+### SC04: Extend Subscription
+# Replace {subscription-id} with actual subscription ID
+POST {{baseUrl}}/api/platform/subscriptions/{subscription-id}/extend
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "newEndDate": "2027-08-07T00:00:00Z",
+  "notes": "Extended by 6 months"
+}
+
+### SC05: Cancel Subscription
+# Replace {subscription-id} with actual subscription ID
+POST {{baseUrl}}/api/platform/subscriptions/{subscription-id}/cancel
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "cancelReason": "Client requested cancellation"
+}
+
+### SC06: Mark Subscription as Paid
+# Replace {subscription-id} with actual subscription ID
+POST {{baseUrl}}/api/platform/subscriptions/{subscription-id}/mark-paid
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "paymentMethod": "Bank Transfer",
+  "paymentReference": "TXN-2026-002",
+  "paidAt": "2026-02-07T10:30:00Z"
+}
+
+### ===== SUBSCRIPTION VALIDATION =====
+
+### SV01: Create Subscription with EndDate before StartDate (400)
+POST {{baseUrl}}/api/platform/subscriptions
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "tenantId": "{tenant-id}",
+  "planName": "Invalid Dates",
+  "startDate": "2026-02-07T00:00:00Z",
+  "endDate": "2026-01-07T00:00:00Z",
+  "amount": 500.00,
+  "currency": "EGP"
+}
+
+### ===== FEATURE FLAGS =====
+
+### FF01: Get Feature Flags for Tenant
+# Replace {tenant-id} with actual tenant ID
+GET {{baseUrl}}/api/platform/feature-flags/{tenant-id}
+Authorization: Bearer {{adminToken}}
+
+### FF03: Update Feature Flags (Single Flag)
+# Replace {tenant-id} with actual tenant ID
+PUT {{baseUrl}}/api/platform/feature-flags/{tenant-id}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "onlineBooking": true,
+  "whatsappAutomation": true,
+  "pwaNotifications": false,
+  "expensesModule": true,
+  "advancedMedicalTemplates": false,
+  "ratings": false,
+  "export": false
+}
+
+### FF04: Update Feature Flags (Multiple Flags)
+# Replace {tenant-id} with actual tenant ID
+PUT {{baseUrl}}/api/platform/feature-flags/{tenant-id}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "onlineBooking": true,
+  "whatsappAutomation": true,
+  "pwaNotifications": true,
+  "expensesModule": true,
+  "advancedMedicalTemplates": true,
+  "ratings": true,
+  "export": true
+}
+
+### ===== AUTHORIZATION TESTS =====
+
+### PA02: Create Tenant without Token (401)
+POST {{baseUrl}}/api/platform/tenants
+Content-Type: application/json
+
+{
+  "name": "Unauthorized Test",
+  "slug": "unauth-test",
+  "contactPhone": "+201234567890"
+}
+
+### ===== MIDDLEWARE TESTS =====
+
+### TM01: Platform Route without X-Tenant Header (Should Work)
+GET {{baseUrl}}/api/platform/tenants
+Authorization: Bearer {{adminToken}}
+
+### TM02: Health Check without X-Tenant (Should Work)
+GET {{baseUrl}}/api/health
+
+### TM03: Auth without X-Tenant (Should Work)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "superadmin",
+  "password": "Admin@123456"
+}

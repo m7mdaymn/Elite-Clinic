@@ -1,0 +1,63 @@
+### Elite Clinic Phase 0 API Test Requests
+
+# Variables
+@baseUrl = http://localhost:5094
+@tenantSlug = clinic-test
+@token = 
+
+### 1. Health Check (No Auth Required)
+GET {{baseUrl}}/api/health
+Content-Type: application/json
+
+### 2. SuperAdmin Login (No Tenant Required)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "superadmin",
+  "password": "Admin@123456"
+}
+
+### 3. Get Current User (Requires Token)
+GET {{baseUrl}}/api/auth/me
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+### 4. Refresh Token
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 5. Patient Login (Requires X-Tenant Header)
+POST {{baseUrl}}/api/auth/patient/login
+Content-Type: application/json
+X-Tenant: {{tenantSlug}}
+
+{
+  "username": "patient@example.com",
+  "password": "Password@123"
+}
+
+### 6. Swagger Docs
+GET {{baseUrl}}/swagger/index.html
+
+### 7. Invalid Login (Should Return 401)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "invalid",
+  "password": "wrongpassword"
+}
+
+### 8. Missing Tenant Header (Should Return 400)
+POST {{baseUrl}}/api/auth/patient/login
+Content-Type: application/json
+
+{
+  "username": "patient@example.com",
+  "password": "Password@123"
+}

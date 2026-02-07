@@ -1,0 +1,13 @@
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\bin\Debug\net9.0\EliteClinic.Domain.deps.json
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\bin\Debug\net9.0\EliteClinic.Domain.dll
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\bin\Debug\net9.0\EliteClinic.Domain.pdb
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\EliteClinic.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\EliteClinic.Domain.AssemblyInfoInputs.cache
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\EliteClinic.Domain.AssemblyInfo.cs
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\EliteClinic.Domain.csproj.CoreCompileInputs.cache
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\EliteClinic.Domain.sourcelink.json
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\EliteClinic.Domain.dll
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\refint\EliteClinic.Domain.dll
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\EliteClinic.Domain.pdb
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\ref\EliteClinic.Domain.dll
+C:\DATA\Elite Clinic\src\EliteClinic.Domain\obj\Debug\net9.0\EliteClinic.Domain.csproj.AssemblyReference.cache
