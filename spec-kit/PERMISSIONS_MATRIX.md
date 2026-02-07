@@ -1,8 +1,8 @@
 # PERMISSIONS_MATRIX.md — Role/Action Access Control
 
-> **Version:** 1.1  
-> **Last Updated:** 2026-02-07  
-> **Status:** Phase 1 Complete
+> **Version:** 3.0  
+> **Last Updated:** 2026-02-08  
+> **Status:** Phase 1, 2 & 3 Complete
 
 ---
 

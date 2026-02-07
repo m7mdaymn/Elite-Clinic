@@ -1,8 +1,8 @@
 # FRONTEND_CONTRACT.md — API Contract for Frontend Integration
 
-> **Version:** 2.0  
+> **Version:** 3.0  
 > **Last Updated:** 2026-02-08  
-> **Status:** Phase 1 & 2 Complete
+> **Status:** Phase 1, 2 & 3 Complete
 
 ---
 
@@ -679,7 +679,27 @@ PUT /api/platform/feature-flags/{tenantId}
 | **Patient deletion** | Soft-delete only (ClinicOwner). Patient marked as deleted but not removed from DB. Excluded from list queries. |
 
 ### Phase 3 — Queue & Clinical Workflow
-> Will be expanded when Phase 3 is implemented.
+
+| Key | Guidance |
+|-----|----------|
+| **Queue session lifecycle** | `POST /sessions` opens, `POST /sessions/{id}/close` closes. Only one active session per doctor. Remaining Waiting/Called tickets auto-become NoShow on close. |
+| **Ticket state machine** | Normal flow: `Waiting → Called → InVisit → Completed`. Skip: `Called → Skipped`. Skipped can be re-called. Cancel: any pre-InVisit state → `Cancelled`. Session close: remaining → `NoShow`. |
+| **Enum serialization** | All enums serialize as **strings** (e.g., `"Waiting"`, `"Completed"`, `"Paid"`, `"Lab"`). Do NOT parse as integers. |
+| **Auto-created Visit** | When ticket transitions to InVisit via `POST /tickets/{id}/start-visit`, a Visit entity is auto-created. No separate call needed. |
+| **Manual visits** | `POST /api/clinic/visits` with `queueTicketId: null` creates a visit without a ticket. Used for walk-ins or ad-hoc consultations. |
+| **Visit nested data** | `GET /api/clinic/visits/{id}` returns `prescriptions[]`, `labRequests[]`, and `invoice?` inline. No separate calls needed for visit details view. |
+| **Invoice per visit** | One invoice per visit max. Attempting duplicate returns error. |
+| **Partial payments** | Record via `POST /api/clinic/payments`. Invoice `status` auto-transitions: `Unpaid → PartiallyPaid → Paid`. `paidAmount` and `remainingAmount` are tracked. Cannot overpay (amount > remainingAmount). |
+| **Cannot reduce below paid** | `PUT /invoices/{id}` cannot set amount below `paidAmount`. Returns error. |
+| **Lab result entry** | `POST .../labs/{id}/result` requires ClinicOwner/ClinicManager/SuperAdmin role (NOT Doctor). This represents staff entering external lab results. |
+| **Queue board** | `GET /api/clinic/queue/board` returns all active sessions with `waitingCount`, `calledCount`, `inVisitCount`, `completedCount`, `currentTicket`, and `waitingTickets[]`. Use for reception dashboard. |
+| **Doctor's queue** | `GET /api/clinic/queue/my-queue` returns the logged-in doctor's active session with tickets. Doctor token auto-resolves. |
+| **Patient ticket** | `GET /api/clinic/queue/my-ticket` returns the patient's current active ticket (Waiting/Called/InVisit). Returns 404 if no active ticket. |
+| **Patient summary** | `GET /api/clinic/patients/{id}/summary` returns patient info + `totalVisits` + last 5 visits. Quick view for doctor during consultation. |
+| **Finance reports** | Daily, by-doctor, monthly, yearly, and profit reports available. Monthly/yearly include expenses and net profit. Profit report supports date range. |
+| **Expense management** | CRUD for clinic expenses. Delete only by ClinicOwner. Category is free-text (e.g., "Supplies", "Utilities", "Rent"). |
+| **Prescription/Lab same-day edit** | Prescriptions and lab requests can only be updated/deleted on the same day they were created. |
+| **Follow-up date** | Set via `PUT /api/clinic/visits/{id}` with `followUpDate`. Frontend should display follow-up reminders. |
 
 ### Phase 4 — Communication & Booking
 > Will be expanded when Phase 4 is implemented.

@@ -1,4 +1,5 @@
 using EliteClinic.Domain.Entities;
+using EliteClinic.Domain.Enums;
 using EliteClinic.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -26,6 +27,14 @@ public class EliteClinicDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<DoctorService> DoctorServices { get; set; }
     public DbSet<DoctorVisitFieldConfig> DoctorVisitFieldConfigs { get; set; }
     public DbSet<Patient> Patients { get; set; }
+    public DbSet<QueueSession> QueueSessions { get; set; }
+    public DbSet<QueueTicket> QueueTickets { get; set; }
+    public DbSet<Visit> Visits { get; set; }
+    public DbSet<Prescription> Prescriptions { get; set; }
+    public DbSet<LabRequest> LabRequests { get; set; }
+    public DbSet<Invoice> Invoices { get; set; }
+    public DbSet<Payment> Payments { get; set; }
+    public DbSet<Expense> Expenses { get; set; }
 
     public EliteClinicDbContext(DbContextOptions<EliteClinicDbContext> options, ITenantContext? tenantContext = null)
         : base(options)
@@ -200,6 +209,166 @@ public class EliteClinicDbContext : IdentityDbContext<ApplicationUser, Applicati
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // QueueSession entity configuration
+        builder.Entity<QueueSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne(e => e.Doctor)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(e => e.Tickets)
+                .WithOne(t => t.Session)
+                .HasForeignKey(t => t.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // QueueTicket entity configuration
+        builder.Entity<QueueTicket>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne(e => e.Patient)
+                .WithMany()
+                .HasForeignKey(e => e.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Doctor)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.DoctorService)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorServiceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Visit entity configuration
+        builder.Entity<Visit>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.Complaint).HasMaxLength(2000);
+            entity.Property(e => e.Diagnosis).HasMaxLength(2000);
+            entity.Property(e => e.Notes).HasMaxLength(4000);
+            entity.Property(e => e.Temperature).HasPrecision(5, 2);
+            entity.Property(e => e.Weight).HasPrecision(6, 2);
+            entity.Property(e => e.Height).HasPrecision(5, 2);
+            entity.Property(e => e.BMI).HasPrecision(5, 2);
+            entity.Property(e => e.BloodSugar).HasPrecision(6, 2);
+            entity.Property(e => e.OxygenSaturation).HasPrecision(5, 2);
+
+            entity.HasIndex(e => e.QueueTicketId).IsUnique().HasFilter("[QueueTicketId] IS NOT NULL");
+
+            entity.HasOne(e => e.QueueTicket)
+                .WithOne()
+                .HasForeignKey<Visit>(e => e.QueueTicketId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Doctor)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Patient)
+                .WithMany()
+                .HasForeignKey(e => e.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(e => e.Prescriptions)
+                .WithOne(p => p.Visit)
+                .HasForeignKey(p => p.VisitId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.LabRequests)
+                .WithOne(l => l.Visit)
+                .HasForeignKey(l => l.VisitId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Invoice)
+                .WithOne(i => i.Visit)
+                .HasForeignKey<Invoice>(i => i.VisitId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Prescription entity configuration
+        builder.Entity<Prescription>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MedicationName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Dosage).HasMaxLength(100);
+            entity.Property(e => e.Frequency).HasMaxLength(100);
+            entity.Property(e => e.Duration).HasMaxLength(100);
+            entity.Property(e => e.Instructions).HasMaxLength(500);
+        });
+
+        // LabRequest entity configuration
+        builder.Entity<LabRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TestName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Type).HasConversion<int>();
+            entity.Property(e => e.Notes).HasMaxLength(500);
+            entity.Property(e => e.ResultText).HasMaxLength(4000);
+        });
+
+        // Invoice entity configuration (1:1 with Visit)
+        builder.Entity<Invoice>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.VisitId).IsUnique();
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.PaidAmount).HasPrecision(18, 2);
+            entity.Property(e => e.RemainingAmount).HasPrecision(18, 2);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne(e => e.Patient)
+                .WithMany()
+                .HasForeignKey(e => e.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Doctor)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(e => e.Payments)
+                .WithOne(p => p.Invoice)
+                .HasForeignKey(p => p.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Payment entity configuration (many per Invoice)
+        builder.Entity<Payment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.PaymentMethod).HasMaxLength(50);
+            entity.Property(e => e.ReferenceNumber).HasMaxLength(100);
+            entity.Property(e => e.Notes).HasMaxLength(500);
+        });
+
+        // Expense entity configuration
+        builder.Entity<Expense>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+
+            entity.HasOne(e => e.RecordedBy)
+                .WithMany()
+                .HasForeignKey(e => e.RecordedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // Global query filter for tenant-scoped entities
         // Uses property reference so EF Core parameterizes per-query (not captured once at model build)
         builder.Entity<ClinicSettings>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
@@ -209,6 +378,14 @@ public class EliteClinicDbContext : IdentityDbContext<ApplicationUser, Applicati
         builder.Entity<DoctorService>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
         builder.Entity<DoctorVisitFieldConfig>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
         builder.Entity<Patient>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<QueueSession>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<QueueTicket>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<Visit>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<Prescription>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<LabRequest>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<Invoice>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<Payment>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<Expense>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

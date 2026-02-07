@@ -1,8 +1,8 @@
 # SWAGGER_DOCUMENTATION.md — API Reference (Human-Readable)
 
-> **Version:** 2.0  
+> **Version:** 3.0  
 > **Last Updated:** 2026-02-08  
-> **Status:** Phase 1 & 2 Complete (43 Endpoints)  
+> **Status:** Phase 1, 2 & 3 Complete (83 Endpoints)  
 > **Swagger URL:** `https://{host}/swagger` (Available in ALL environments including production)
 
 ---
@@ -1115,11 +1115,914 @@
 
 ---
 
+## MODULE: Queue Sessions
+
+### `POST /api/clinic/queue/sessions`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Open a new queue session (doctor's shift) |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+| **Description** | Starts a doctor's shift, begins accepting patients. Only one active session per doctor allowed. |
+
+**Request Body:**
+```json
+{
+  "doctorId": "guid (optional, auto-resolved for Doctor role)",
+  "notes": "string?"
+}
+```
+
+**Response 201:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "guid",
+    "doctorId": "guid",
+    "doctorName": "Dr. Khaled",
+    "startedAt": "2026-02-08T09:00:00Z",
+    "closedAt": null,
+    "isActive": true,
+    "notes": null,
+    "totalTickets": 0,
+    "waitingCount": 0,
+    "completedCount": 0,
+    "createdAt": "2026-02-08T09:00:00Z"
+  }
+}
+```
+
+---
+
+### `POST /api/clinic/queue/sessions/{id}/close`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Close a queue session |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+| **Description** | Ends the doctor's shift. Remaining Waiting/Called tickets automatically become NoShow. |
+
+**Response 200:** `ApiResponse<QueueSessionDto>` with `isActive: false`
+
+---
+
+### `GET /api/clinic/queue/sessions`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | List all queue sessions (paginated) |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Query** | `pageNumber` (default 1), `pageSize` (default 20) |
+
+**Response 200:** `ApiResponse<PagedResult<QueueSessionDto>>`
+
+---
+
+### `GET /api/clinic/queue/sessions/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Get session by ID with ticket summary |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+
+**Response 200:** `ApiResponse<QueueSessionDto>`
+
+---
+
+### `GET /api/clinic/queue/sessions/{id}/tickets`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Get all tickets for a session |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+| **Description** | Returns tickets ordered: urgent first, then by issued time. |
+
+**Response 200:** `ApiResponse<List<QueueTicketDto>>`
+
+---
+
+## MODULE: Queue Tickets
+
+### `POST /api/clinic/queue/tickets`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Issue a ticket to a patient (reception) |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Description** | Reception issues ticket to patient for a doctor session. One active ticket per patient per session. |
+
+**Request Body:**
+```json
+{
+  "sessionId": "guid",
+  "patientId": "guid",
+  "doctorId": "guid",
+  "doctorServiceId": "guid? (optional)",
+  "notes": "string?"
+}
+```
+
+**Response 201:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "guid",
+    "sessionId": "guid",
+    "patientId": "guid",
+    "patientName": "Mohamed Hassan",
+    "doctorId": "guid",
+    "doctorName": "Dr. Khaled",
+    "ticketNumber": 1,
+    "status": "Waiting",
+    "isUrgent": false,
+    "issuedAt": "2026-02-08T09:05:00Z",
+    "calledAt": null,
+    "visitStartedAt": null,
+    "completedAt": null,
+    "notes": null
+  }
+}
+```
+
+---
+
+### `POST /api/clinic/queue/tickets/{id}/call`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Call next patient (Waiting → Called) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+
+---
+
+### `POST /api/clinic/queue/tickets/{id}/start-visit`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Start visit from ticket (Called → InVisit) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+| **Description** | Transitions ticket to InVisit and auto-creates a Visit entity. |
+
+---
+
+### `POST /api/clinic/queue/tickets/{id}/finish`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Finish ticket (InVisit → Completed) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+| **Description** | Marks ticket and linked visit as completed. |
+
+---
+
+### `POST /api/clinic/queue/tickets/{id}/skip`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Skip ticket (Called → Skipped) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+| **Description** | Patient didn't answer when called. Can be re-called later. |
+
+---
+
+### `POST /api/clinic/queue/tickets/{id}/cancel`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Cancel ticket |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+
+---
+
+### `POST /api/clinic/queue/tickets/{id}/urgent`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Mark ticket as urgent |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+| **Description** | Elevates ticket priority. Urgent tickets appear first in queue. |
+
+---
+
+## MODULE: Queue Board
+
+### `GET /api/clinic/queue/board`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Reception board — all active sessions with ticket counts |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Description** | Returns today's active sessions with waiting/called/in-visit/completed ticket counts and current ticket info. |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
+      {
+        "sessionId": "guid",
+        "doctorName": "Dr. Khaled",
+        "isActive": true,
+        "waitingCount": 3,
+        "calledCount": 0,
+        "inVisitCount": 1,
+        "completedCount": 5,
+        "currentTicket": { ... },
+        "waitingTickets": [ ... ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+### `GET /api/clinic/queue/my-queue`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Doctor's own queue |
+| **Auth** | Bearer Token |
+| **Roles** | Doctor, SuperAdmin |
+| **Description** | Shows the logged-in doctor's active session with all tickets. |
+
+**Response 200:** `ApiResponse<QueueBoardSessionDto>`
+
+---
+
+### `GET /api/clinic/queue/my-ticket`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Patient's active ticket status |
+| **Auth** | Bearer Token |
+| **Roles** | Patient, SuperAdmin |
+| **Description** | Returns the patient's current active ticket (Waiting/Called/InVisit). |
+
+**Response 200:** `ApiResponse<QueueTicketDto>`  
+**Response 404:** No active ticket found
+
+---
+
+## MODULE: Visits
+
+### `POST /api/clinic/visits`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Create a visit manually (no ticket required) |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, Doctor, SuperAdmin |
+| **Description** | Creates a visit without a queue ticket. Supports walk-in patients or ad-hoc consultations. Can also link to an existing ticket via `queueTicketId`. |
+
+**Request Body:**
+```json
+{
+  "queueTicketId": "guid? (optional)",
+  "doctorId": "guid",
+  "patientId": "guid",
+  "complaint": "string?",
+  "notes": "string?"
+}
+```
+
+**Response 201:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "guid",
+    "queueTicketId": null,
+    "doctorId": "guid",
+    "doctorName": "Dr. Mona",
+    "patientId": "guid",
+    "patientName": "Ahmed Ali",
+    "status": "Open",
+    "complaint": "Headache",
+    "diagnosis": null,
+    "bloodPressureSystolic": null,
+    "bloodPressureDiastolic": null,
+    "heartRate": null,
+    "temperature": null,
+    "weight": null,
+    "height": null,
+    "prescriptions": [],
+    "labRequests": [],
+    "invoice": null,
+    "startedAt": "2026-02-08T10:00:00Z",
+    "completedAt": null
+  }
+}
+```
+
+---
+
+### `PUT /api/clinic/visits/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Update visit (complaint, vitals, diagnosis, notes) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+| **Description** | Only updatable while visit status is Open. |
+
+**Request Body:**
+```json
+{
+  "complaint": "string?",
+  "diagnosis": "string?",
+  "notes": "string?",
+  "bloodPressureSystolic": 120,
+  "bloodPressureDiastolic": 80,
+  "heartRate": 75,
+  "temperature": 37.0,
+  "weight": 70.5,
+  "height": 175.0,
+  "bmi": 23.0,
+  "bloodSugar": 90.0,
+  "oxygenSaturation": 98.0,
+  "respiratoryRate": 16,
+  "followUpDate": "2026-02-15T00:00:00Z"
+}
+```
+
+---
+
+### `POST /api/clinic/visits/{id}/complete`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Complete a visit |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+| **Description** | Marks visit as Completed. Also completes linked ticket if present. |
+
+**Request Body:**
+```json
+{
+  "diagnosis": "string?",
+  "notes": "string?"
+}
+```
+
+---
+
+### `GET /api/clinic/visits/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Get visit by ID with nested data |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+| **Description** | Returns full visit with prescriptions, lab requests, and invoice. |
+
+**Response 200:** `ApiResponse<VisitDto>` (includes `prescriptions[]`, `labRequests[]`, `invoice?`)
+
+---
+
+### `GET /api/clinic/patients/{patientId}/visits`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Get patient visit history (paginated) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+| **Query** | `pageNumber`, `pageSize` |
+
+**Response 200:** `ApiResponse<PagedResult<VisitDto>>`
+
+---
+
+### `GET /api/clinic/patients/{patientId}/summary`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Patient summary for doctor view |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+| **Description** | Quick patient overview: info + total visits + last 5 visits. |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "patientId": "guid",
+    "name": "Mohamed Hassan",
+    "phone": "+201500000001",
+    "dateOfBirth": "1990-01-15",
+    "gender": "Male",
+    "totalVisits": 12,
+    "recentVisits": [
+      {
+        "id": "guid",
+        "doctorName": "Dr. Khaled",
+        "complaint": "Headache",
+        "diagnosis": "Tension headache",
+        "startedAt": "2026-02-08T10:00:00Z",
+        "completedAt": "2026-02-08T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## MODULE: Prescriptions
+
+### `POST /api/clinic/visits/{visitId}/prescriptions`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Add prescription to visit |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+
+**Request Body:**
+```json
+{
+  "medicationName": "Amoxicillin 500mg",
+  "dosage": "1 capsule",
+  "frequency": "3 times daily",
+  "duration": "7 days",
+  "instructions": "Take after meals"
+}
+```
+
+**Response 201:** `ApiResponse<PrescriptionDto>`
+
+---
+
+### `PUT /api/clinic/visits/{visitId}/prescriptions/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Update prescription (same-day only) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+
+---
+
+### `DELETE /api/clinic/visits/{visitId}/prescriptions/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Delete prescription (same-day only) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+
+---
+
+### `GET /api/clinic/visits/{visitId}/prescriptions`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | List all prescriptions for a visit |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+
+**Response 200:** `ApiResponse<List<PrescriptionDto>>`
+
+---
+
+## MODULE: Lab/Imaging Requests
+
+### `POST /api/clinic/visits/{visitId}/labs`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Add lab/imaging request to visit |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+
+**Request Body:**
+```json
+{
+  "testName": "CBC - Complete Blood Count",
+  "type": "Lab",
+  "notes": "Fasting required",
+  "isUrgent": false
+}
+```
+
+**Response 201:** `ApiResponse<LabRequestDto>`
+
+---
+
+### `PUT /api/clinic/visits/{visitId}/labs/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Update lab/imaging request (same-day only) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+
+---
+
+### `POST /api/clinic/visits/{visitId}/labs/{id}/result`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Add result to a lab/imaging request |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Description** | Usually entered by staff/manager when results arrive from the lab. |
+
+**Request Body:**
+```json
+{
+  "resultText": "WBC: 7.5, RBC: 4.8, Hemoglobin: 14.2..."
+}
+```
+
+---
+
+### `GET /api/clinic/visits/{visitId}/labs`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | List all lab/imaging requests for a visit |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, Doctor, SuperAdmin |
+
+**Response 200:** `ApiResponse<List<LabRequestDto>>`
+
+---
+
+## MODULE: Invoices & Payments
+
+### `POST /api/clinic/invoices`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Create an invoice for a visit |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Description** | One invoice per visit. Invoice amount can be updated while visit is Open. |
+
+**Request Body:**
+```json
+{
+  "visitId": "guid",
+  "amount": 500.00,
+  "notes": "Consultation + X-ray"
+}
+```
+
+**Response 201:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "guid",
+    "visitId": "guid",
+    "patientId": "guid",
+    "patientName": "Mohamed Hassan",
+    "doctorId": "guid",
+    "doctorName": "Dr. Khaled",
+    "amount": 500.00,
+    "paidAmount": 0.00,
+    "remainingAmount": 500.00,
+    "status": "Unpaid",
+    "notes": "Consultation + X-ray",
+    "payments": [],
+    "createdAt": "2026-02-08T10:30:00Z"
+  }
+}
+```
+
+---
+
+### `PUT /api/clinic/invoices/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Update invoice amount/notes |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Description** | Cannot reduce amount below already-paid amount. |
+
+---
+
+### `GET /api/clinic/invoices/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Get invoice by ID with payments |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+
+---
+
+### `GET /api/clinic/invoices`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | List invoices (filterable) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Query** | `from`, `to`, `doctorId`, `pageNumber`, `pageSize` |
+
+---
+
+### `POST /api/clinic/payments`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Record a payment against an invoice |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Description** | Partial payments supported. Invoice status auto-transitions: Unpaid → PartiallyPaid → Paid. Cannot overpay (exceed remaining amount). |
+
+**Request Body:**
+```json
+{
+  "invoiceId": "guid",
+  "amount": 200.00,
+  "paymentMethod": "Cash",
+  "referenceNumber": "REC-001",
+  "notes": "Partial payment"
+}
+```
+
+**Response 201:** `ApiResponse<PaymentDto>`
+
+---
+
+### `GET /api/clinic/invoices/{id}/payments`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Get all payments for an invoice |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+
+**Response 200:** `ApiResponse<List<PaymentDto>>`
+
+---
+
+## MODULE: Expenses
+
+### `POST /api/clinic/expenses`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Add expense |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+
+**Request Body:**
+```json
+{
+  "category": "Medical Supplies",
+  "amount": 1500.00,
+  "notes": "Gloves, syringes, bandages",
+  "expenseDate": "2026-02-08T00:00:00Z"
+}
+```
+
+**Response 201:** `ApiResponse<ExpenseDto>`
+
+---
+
+### `PUT /api/clinic/expenses/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Update expense |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+
+---
+
+### `DELETE /api/clinic/expenses/{id}`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Delete expense |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, SuperAdmin |
+
+---
+
+### `GET /api/clinic/expenses`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | List expenses (filterable) |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Query** | `from`, `to`, `category`, `pageNumber`, `pageSize` |
+
+**Response 200:** `ApiResponse<PagedResult<ExpenseDto>>`
+
+---
+
+## MODULE: Finance Reports
+
+### `GET /api/clinic/finance/daily`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Daily revenue summary |
+| **Auth** | Bearer Token |
+| **Headers** | `Authorization`, `X-Tenant` |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Query** | `date` (optional, defaults to today) |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "date": "2026-02-08",
+    "totalRevenue": 5000.00,
+    "totalPaid": 3500.00,
+    "totalUnpaid": 1500.00,
+    "invoiceCount": 12,
+    "paymentCount": 10
+  }
+}
+```
+
+---
+
+### `GET /api/clinic/finance/by-doctor`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Revenue breakdown by doctor |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Query** | `date` (optional), `doctorId` (optional, filter to single doctor) |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "doctorId": "guid",
+      "doctorName": "Dr. Khaled",
+      "totalRevenue": 3000.00,
+      "totalPaid": 2500.00,
+      "visitCount": 8
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/clinic/finance/monthly`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Monthly revenue summary with expenses |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, SuperAdmin |
+| **Query** | `year` (optional), `month` (optional) |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "year": 2026,
+    "month": 2,
+    "totalRevenue": 50000.00,
+    "totalPaid": 42000.00,
+    "totalExpenses": 15000.00,
+    "netProfit": 27000.00,
+    "invoiceCount": 120
+  }
+}
+```
+
+---
+
+### `GET /api/clinic/finance/yearly`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Yearly revenue summary with monthly breakdown |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, SuperAdmin |
+| **Query** | `year` (optional, defaults to current year) |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "year": 2026,
+    "totalRevenue": 600000.00,
+    "totalPaid": 520000.00,
+    "totalExpenses": 180000.00,
+    "netProfit": 340000.00,
+    "invoiceCount": 1440,
+    "months": [ ... ]
+  }
+}
+```
+
+---
+
+### `GET /api/clinic/finance/profit`
+
+| Property | Value |
+|----------|-------|
+| **Summary** | Profit report for a date range |
+| **Auth** | Bearer Token |
+| **Roles** | ClinicOwner, ClinicManager, SuperAdmin |
+| **Query** | `from` (optional), `to` (optional) |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "from": "2026-02-01",
+    "to": "2026-02-28",
+    "totalRevenue": 50000.00,
+    "totalPaid": 42000.00,
+    "totalExpenses": 15000.00,
+    "netProfit": 27000.00,
+    "invoiceCount": 120,
+    "expenseCount": 25,
+    "byDoctor": [ ... ]
+  }
+}
+```
+
+---
+
+## ENUMS (Phase 3)
+
+### TicketStatus
+| Value | Description |
+|-------|-------------|
+| `Waiting` | Patient in queue, waiting to be called |
+| `Called` | Doctor has called the patient |
+| `InVisit` | Patient is with the doctor |
+| `Completed` | Visit finished |
+| `Skipped` | Patient didn't respond when called |
+| `NoShow` | Session closed, patient never seen |
+| `Cancelled` | Ticket was cancelled |
+
+### VisitStatus
+| Value | Description |
+|-------|-------------|
+| `Open` | Visit in progress |
+| `Completed` | Visit finished |
+
+### InvoiceStatus
+| Value | Description |
+|-------|-------------|
+| `Unpaid` | No payments recorded |
+| `PartiallyPaid` | Some payment received, balance remaining |
+| `Paid` | Fully paid, remaining = 0 |
+
+### LabRequestType
+| Value | Description |
+|-------|-------------|
+| `Lab` | Laboratory test (blood, urine, etc.) |
+| `Imaging` | Imaging study (X-ray, MRI, CT, etc.) |
+
+---
+
 ## FUTURE PHASES
 
 Endpoint documentation will be added as each phase is implemented. No aspirational or preview content.
 
-- **Phase 3:** Queue system, visits, prescriptions, labs, payments, expenses, finance
 - **Phase 4:** WhatsApp messaging, online booking, public SEO, PWA notifications
 - **Phase 5:** Reporting, export, platform audit, analytics, SignalR, full seed
 

@@ -26,7 +26,11 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new()
@@ -118,6 +122,15 @@ builder.Services.AddScoped<IClinicSettingsService, ClinicSettingsService>();
 builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IDoctorService, DoctorServiceImpl>();
 builder.Services.AddScoped<IPatientService, PatientService>();
+
+// Phase 3 Services
+builder.Services.AddScoped<IQueueService, QueueService>();
+builder.Services.AddScoped<IVisitService, VisitService>();
+builder.Services.AddScoped<IPrescriptionService, PrescriptionService>();
+builder.Services.AddScoped<ILabRequestService, LabRequestService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IExpenseService, ExpenseService>();
+builder.Services.AddScoped<IFinanceService, FinanceService>();
 
 // RF06 Fix: Wrap model validation errors in ApiResponse format
 builder.Services.Configure<ApiBehaviorOptions>(options =>
@@ -219,6 +232,9 @@ async Task SeedDataAsync(EliteClinicDbContext dbContext, IServiceProvider servic
 
     // Phase 2: Seed clinic users for testing (idempotent)
     await SeedPhase2ClinicUsersAsync(dbContext, userManager);
+
+    // Phase 3: Seed queue sessions, visits, invoices, expenses (idempotent)
+    await SeedPhase3WorkflowAsync(dbContext);
 }
 
 async Task SeedPhase1TenantsAsync(EliteClinicDbContext dbContext)
@@ -524,6 +540,16 @@ async Task SeedPhase2ClinicUsersAsync(EliteClinicDbContext dbContext, UserManage
         var username = $"patient_demo-clinic_{i + 1}";
         var patientUser = await GetOrCreateUser(username, name, "Patient@1234", "Patient");
 
+        // Idempotent: skip if patient already exists for this user
+        if (await dbContext.Patients.IgnoreQueryFilters().AnyAsync(p => p.UserId == patientUser.Id && p.IsDefault && !p.IsDeleted))
+        {
+            if (i == 0) {
+                firstPatient = await dbContext.Patients.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.UserId == patientUser.Id && p.IsDefault && !p.IsDeleted);
+                firstPatientUser = patientUser;
+            }
+            continue;
+        }
+
         var patient = new EliteClinic.Domain.Entities.Patient
         {
             TenantId = tenantId, UserId = patientUser.Id, Name = name,
@@ -541,7 +567,9 @@ async Task SeedPhase2ClinicUsersAsync(EliteClinicDbContext dbContext, UserManage
     // Add sub-profile for first patient
     if (firstPatient != null && firstPatientUser != null)
     {
-        dbContext.Patients.Add(new EliteClinic.Domain.Entities.Patient
+        if (!await dbContext.Patients.IgnoreQueryFilters().AnyAsync(p => p.UserId == firstPatientUser.Id && !p.IsDefault && !p.IsDeleted))
+        {
+            dbContext.Patients.Add(new EliteClinic.Domain.Entities.Patient
         {
             TenantId = tenantId, UserId = firstPatientUser.Id,
             Name = "Yassin Mohamed", Phone = firstPatient.Phone,
@@ -550,5 +578,213 @@ async Task SeedPhase2ClinicUsersAsync(EliteClinicDbContext dbContext, UserManage
             IsDefault = false, ParentPatientId = firstPatient.Id
         });
         await dbContext.SaveChangesAsync();
+        }
     }
+}
+
+async Task SeedPhase3WorkflowAsync(EliteClinicDbContext dbContext)
+{
+    // Idempotent: skip if any queue sessions exist
+    if (await dbContext.QueueSessions.IgnoreQueryFilters().AnyAsync())
+        return;
+
+    var demoTenant = await dbContext.Tenants.IgnoreQueryFilters()
+        .FirstOrDefaultAsync(t => t.Slug == "demo-clinic" && !t.IsDeleted);
+    if (demoTenant == null) return;
+
+    var tenantId = demoTenant.Id;
+
+    // Get seeded doctors and patients
+    var doctors = await dbContext.Doctors.IgnoreQueryFilters()
+        .Where(d => d.TenantId == tenantId && !d.IsDeleted).ToListAsync();
+    var patients = await dbContext.Patients.IgnoreQueryFilters()
+        .Where(p => p.TenantId == tenantId && !p.IsDeleted && p.IsDefault).ToListAsync();
+    var doctorServices = await dbContext.DoctorServices.IgnoreQueryFilters()
+        .Where(ds => ds.TenantId == tenantId && !ds.IsDeleted).ToListAsync();
+    var staff = await dbContext.Employees.IgnoreQueryFilters()
+        .Where(e => e.TenantId == tenantId && !e.IsDeleted).FirstOrDefaultAsync();
+
+    if (doctors.Count < 2 || patients.Count < 4) return;
+
+    var doctor1 = doctors[0]; // Dr. Khaled
+    var doctor2 = doctors[1]; // Dr. Mona
+    var now = DateTime.UtcNow;
+
+    // === Queue Session 1: Dr. Khaled (today, active) ===
+    var session1 = new EliteClinic.Domain.Entities.QueueSession
+    {
+        TenantId = tenantId, DoctorId = doctor1.Id, IsActive = true, StartedAt = now.AddHours(-3)
+    };
+    dbContext.QueueSessions.Add(session1);
+
+    // Ticket 1: Completed visit (patient 1)
+    var ticket1 = new EliteClinic.Domain.Entities.QueueTicket
+    {
+        TenantId = tenantId, SessionId = session1.Id, PatientId = patients[0].Id,
+        DoctorId = doctor1.Id, DoctorServiceId = doctorServices.First(ds => ds.DoctorId == doctor1.Id).Id,
+        TicketNumber = 1, Status = EliteClinic.Domain.Enums.TicketStatus.Completed,
+        CalledAt = now.AddHours(-2.5), VisitStartedAt = now.AddHours(-2.5), CompletedAt = now.AddHours(-2)
+    };
+    dbContext.QueueTickets.Add(ticket1);
+
+    // Visit for ticket 1 (completed)
+    var visit1 = new EliteClinic.Domain.Entities.Visit
+    {
+        TenantId = tenantId, QueueTicketId = ticket1.Id, DoctorId = doctor1.Id,
+        PatientId = patients[0].Id, Status = EliteClinic.Domain.Enums.VisitStatus.Completed,
+        Complaint = "Toothache in lower right molar",
+        Diagnosis = "Dental caries in tooth #46",
+        Notes = "Recommended root canal treatment",
+        BloodPressureSystolic = 120, BloodPressureDiastolic = 80, HeartRate = 72, Temperature = 36.8m, Weight = 78.5m
+    };
+    dbContext.Visits.Add(visit1);
+
+    // Prescriptions for visit 1
+    dbContext.Prescriptions.Add(new EliteClinic.Domain.Entities.Prescription
+    {
+        TenantId = tenantId, VisitId = visit1.Id,
+        MedicationName = "Amoxicillin 500mg", Dosage = "500mg", Frequency = "3 times daily",
+        Duration = "7 days", Instructions = "Take after meals"
+    });
+    dbContext.Prescriptions.Add(new EliteClinic.Domain.Entities.Prescription
+    {
+        TenantId = tenantId, VisitId = visit1.Id,
+        MedicationName = "Ibuprofen 400mg", Dosage = "400mg", Frequency = "As needed",
+        Duration = "5 days", Instructions = "Take with food for pain relief"
+    });
+
+    // Lab request for visit 1
+    dbContext.LabRequests.Add(new EliteClinic.Domain.Entities.LabRequest
+    {
+        TenantId = tenantId, VisitId = visit1.Id,
+        TestName = "Dental X-Ray Periapical", Type = EliteClinic.Domain.Enums.LabRequestType.Imaging,
+        IsUrgent = false, ResultText = "Caries visible on #46, no periapical abscess",
+        ResultReceivedAt = now.AddHours(-1)
+    });
+
+    // Invoice for visit 1 (fully paid)
+    var invoice1 = new EliteClinic.Domain.Entities.Invoice
+    {
+        TenantId = tenantId, VisitId = visit1.Id, PatientId = patients[0].Id, DoctorId = doctor1.Id,
+        Amount = 200m, PaidAmount = 200m, RemainingAmount = 0m,
+        Status = EliteClinic.Domain.Enums.InvoiceStatus.Paid
+    };
+    dbContext.Invoices.Add(invoice1);
+
+    dbContext.Payments.Add(new EliteClinic.Domain.Entities.Payment
+    {
+        TenantId = tenantId, InvoiceId = invoice1.Id,
+        Amount = 200m, PaymentMethod = "Cash", PaidAt = now.AddHours(-2)
+    });
+
+    // Ticket 2: Currently in visit (patient 2)
+    var ticket2 = new EliteClinic.Domain.Entities.QueueTicket
+    {
+        TenantId = tenantId, SessionId = session1.Id, PatientId = patients[1].Id,
+        DoctorId = doctor1.Id, DoctorServiceId = doctorServices.First(ds => ds.DoctorId == doctor1.Id).Id,
+        TicketNumber = 2, Status = EliteClinic.Domain.Enums.TicketStatus.InVisit,
+        CalledAt = now.AddMinutes(-30), VisitStartedAt = now.AddMinutes(-30)
+    };
+    dbContext.QueueTickets.Add(ticket2);
+
+    var visit2 = new EliteClinic.Domain.Entities.Visit
+    {
+        TenantId = tenantId, QueueTicketId = ticket2.Id, DoctorId = doctor1.Id,
+        PatientId = patients[1].Id, Status = EliteClinic.Domain.Enums.VisitStatus.Open,
+        Complaint = "Routine dental checkup", Temperature = 36.5m, Weight = 65m
+    };
+    dbContext.Visits.Add(visit2);
+
+    // Ticket 3: Waiting (patient 3)
+    dbContext.QueueTickets.Add(new EliteClinic.Domain.Entities.QueueTicket
+    {
+        TenantId = tenantId, SessionId = session1.Id, PatientId = patients[2].Id,
+        DoctorId = doctor1.Id, TicketNumber = 3, Status = EliteClinic.Domain.Enums.TicketStatus.Waiting
+    });
+
+    // Ticket 4: Waiting + Urgent (patient 4)
+    dbContext.QueueTickets.Add(new EliteClinic.Domain.Entities.QueueTicket
+    {
+        TenantId = tenantId, SessionId = session1.Id, PatientId = patients[3].Id,
+        DoctorId = doctor1.Id, TicketNumber = 4, Status = EliteClinic.Domain.Enums.TicketStatus.Waiting,
+        IsUrgent = true
+    });
+
+    // === Queue Session 2: Dr. Mona (today, active) ===
+    var session2 = new EliteClinic.Domain.Entities.QueueSession
+    {
+        TenantId = tenantId, DoctorId = doctor2.Id, IsActive = true, StartedAt = now.AddHours(-2)
+    };
+    dbContext.QueueSessions.Add(session2);
+
+    // Ticket for Dr. Mona (waiting)
+    dbContext.QueueTickets.Add(new EliteClinic.Domain.Entities.QueueTicket
+    {
+        TenantId = tenantId, SessionId = session2.Id, PatientId = patients[4].Id,
+        DoctorId = doctor2.Id, DoctorServiceId = doctorServices.First(ds => ds.DoctorId == doctor2.Id).Id,
+        TicketNumber = 1, Status = EliteClinic.Domain.Enums.TicketStatus.Waiting
+    });
+
+    // === Manual Visit (no ticket, yesterday) ===
+    var manualVisit = new EliteClinic.Domain.Entities.Visit
+    {
+        TenantId = tenantId, QueueTicketId = null, DoctorId = doctor2.Id,
+        PatientId = patients[5].Id, Status = EliteClinic.Domain.Enums.VisitStatus.Completed,
+        Complaint = "Braces adjustment follow-up",
+        Diagnosis = "Adjustment completed successfully",
+        Notes = "Next appointment in 4 weeks",
+        FollowUpDate = now.AddDays(28)
+    };
+    // Set CreatedAt to yesterday so it appears as a past visit
+    dbContext.Visits.Add(manualVisit);
+
+    // Invoice for manual visit (partially paid)
+    var invoice3 = new EliteClinic.Domain.Entities.Invoice
+    {
+        TenantId = tenantId, VisitId = manualVisit.Id, PatientId = patients[5].Id, DoctorId = doctor2.Id,
+        Amount = 500m, PaidAmount = 300m, RemainingAmount = 200m,
+        Status = EliteClinic.Domain.Enums.InvoiceStatus.PartiallyPaid
+    };
+    dbContext.Invoices.Add(invoice3);
+
+    dbContext.Payments.Add(new EliteClinic.Domain.Entities.Payment
+    {
+        TenantId = tenantId, InvoiceId = invoice3.Id,
+        Amount = 300m, PaymentMethod = "Credit Card", ReferenceNumber = "CC-2025-001",
+        PaidAt = now.AddDays(-1)
+    });
+
+    // Lab request for manual visit (pending result)
+    dbContext.LabRequests.Add(new EliteClinic.Domain.Entities.LabRequest
+    {
+        TenantId = tenantId, VisitId = manualVisit.Id,
+        TestName = "Panoramic X-Ray", Type = EliteClinic.Domain.Enums.LabRequestType.Imaging,
+        IsUrgent = false
+    });
+
+    // === Expenses ===
+    var recordedByUserId = staff?.UserId ?? doctor1.UserId;
+
+    dbContext.Expenses.Add(new EliteClinic.Domain.Entities.Expense
+    {
+        TenantId = tenantId, Category = "Supplies",
+        Amount = 1500m, Notes = "Dental supplies and consumables",
+        ExpenseDate = now.Date, RecordedByUserId = recordedByUserId
+    });
+
+    dbContext.Expenses.Add(new EliteClinic.Domain.Entities.Expense
+    {
+        TenantId = tenantId, Category = "Utilities",
+        Amount = 800m, Notes = "Electricity and water bill",
+        ExpenseDate = now.Date.AddDays(-5), RecordedByUserId = recordedByUserId
+    });
+
+    dbContext.Expenses.Add(new EliteClinic.Domain.Entities.Expense
+    {
+        TenantId = tenantId, Category = "Rent",
+        Amount = 5000m, Notes = "Monthly clinic rent",
+        ExpenseDate = now.Date.AddDays(-15), RecordedByUserId = recordedByUserId
+    });
+
+    await dbContext.SaveChangesAsync();
 }
