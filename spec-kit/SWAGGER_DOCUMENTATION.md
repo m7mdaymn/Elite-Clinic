@@ -1,8 +1,8 @@
 # SWAGGER_DOCUMENTATION.md — API Reference (Human-Readable)
 
-> **Version:** 3.0  
-> **Last Updated:** 2026-02-08  
-> **Status:** Phase 1, 2 & 3 Complete (83 Endpoints)  
+> **Version:** 4.0  
+> **Last Updated:** 2026-02-07  
+> **Status:** Phase 1, 2, 3 & 4 Complete (105 Endpoints)  
 > **Swagger URL:** `https://{host}/swagger` (Available in ALL environments including production)
 
 ---
@@ -2019,11 +2019,288 @@
 
 ---
 
+## MODULE: Public SEO (Phase 4)
+
+> **Base:** `/api/public`  
+> **Auth:** None required  
+> **X-Tenant:** Not required  
+> **Purpose:** Public-facing endpoints for clinic profiles, SEO, and patient-facing booking pages
+
+### GET `/api/public/{slug}/clinic`
+- **Description:** Get public clinic profile by tenant slug
+- **Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "clinicName": "Demo Clinic",
+    "tenantSlug": "demo-clinic",
+    "address": "123 Main St",
+    "phone": "+201234567890",
+    "logoUrl": null,
+    "isActive": true,
+    "bookingEnabled": true
+  }
+}
+```
+
+### GET `/api/public/{slug}/doctors`
+- **Description:** List active doctors for a clinic (public)
+- **Response:** `data` is array of `PublicDoctorDto` with name, specialty, bio, photoUrl, services[]
+
+### GET `/api/public/{slug}/services`
+- **Description:** List active services for a clinic (public)
+- **Response:** `data` is array of `PublicDoctorServiceDto` with serviceName, price, durationMinutes, doctorName
+
+### GET `/api/public/{slug}/working-hours`
+- **Description:** Get working hours for a clinic (public)
+- **Response:** `data` is array of `PublicWorkingHourDto` with dayOfWeek, startTime, endTime, isOpen
+
+---
+
+## MODULE: Online Booking (Phase 4)
+
+> **Base:** `/api/clinic/bookings`  
+> **Auth:** JWT required  
+> **X-Tenant:** Required  
+> **Purpose:** Online appointment booking with full lifecycle
+
+### POST `/api/clinic/bookings`
+- **Roles:** Patient, ClinicOwner, ClinicManager, Receptionist, SuperAdmin
+- **Feature Flag:** `OnlineBooking` must be enabled
+- **Request:**
+```json
+{
+  "doctorId": "guid",
+  "doctorServiceId": "guid (optional)",
+  "bookingDate": "2026-03-01",
+  "bookingTime": "09:00",
+  "notes": "optional"
+}
+```
+- **Validations:** Future date, doctor exists, no duplicate (same doctor+date+time), booking enabled in clinic settings
+- **Response:** `BookingDto` with status `Confirmed`
+
+### POST `/api/clinic/bookings/{id}/cancel`
+- **Request:** `{ "cancellationReason": "string" }`
+- **Validations:** Only `Confirmed` bookings, within cancellation window
+- **Response:** `BookingDto` with status `Cancelled`
+
+### POST `/api/clinic/bookings/{id}/reschedule`
+- **Request:** `{ "bookingDate": "2026-03-05", "bookingTime": "11:00" }`
+- **Validations:** Only `Confirmed` bookings, new time must be future
+- **Response:** `BookingDto` with status `Confirmed` (re-confirmed after reschedule)
+
+### GET `/api/clinic/bookings/{id}`
+- **Response:** Single `BookingDto`
+
+### GET `/api/clinic/bookings`
+- **Roles:** ClinicOwner, ClinicManager, Receptionist, Doctor, SuperAdmin
+- **Query:** `?pageNumber=1&pageSize=10&doctorId=guid&status=Confirmed`
+- **Response:** `PagedResult<BookingDto>`
+
+### GET `/api/clinic/bookings/my`
+- **Roles:** Patient
+- **Response:** Array of `BookingDto` for the authenticated patient
+
+### BookingDto
+```json
+{
+  "id": "guid",
+  "patientId": "guid",
+  "patientName": "string",
+  "patientPhone": "string",
+  "doctorId": "guid",
+  "doctorName": "string",
+  "doctorServiceId": "guid | null",
+  "serviceName": "string | null",
+  "bookingDate": "2026-03-01T00:00:00",
+  "bookingTime": "09:00",
+  "status": "Confirmed",
+  "notes": "string",
+  "queueTicketId": "guid | null",
+  "cancelledAt": "datetime | null",
+  "cancellationReason": "string | null",
+  "createdAt": "datetime"
+}
+```
+
+---
+
+## MODULE: WhatsApp Message Queue (Phase 4)
+
+> **Base:** `/api/clinic/messages`  
+> **Auth:** JWT required  
+> **X-Tenant:** Required  
+> **Purpose:** Queue and track WhatsApp/PWA messages
+
+### POST `/api/clinic/messages/send`
+- **Roles:** ClinicOwner, ClinicManager, Receptionist, Doctor, SuperAdmin
+- **Request:**
+```json
+{
+  "templateName": "patient_credentials",
+  "recipientPhone": "+966500000001",
+  "recipientUserId": "guid (optional)",
+  "channel": "WhatsApp",
+  "variables": { "patientName": "Ahmad", "clinicName": "Demo Clinic" }
+}
+```
+- **Valid Templates:** `patient_credentials`, `queue_ticket_issued`, `your_turn`, `visit_summary`, `followup_reminder`, `medication_reminder`, `password_reset`, `booking_confirmation`, `booking_cancellation`, `booking_reminder`
+- **WhatsApp requires:** `recipientPhone`
+- **Response:** `MessageLogDto` with status `Sent`
+
+### POST `/api/clinic/messages/{id}/retry`
+- **Validations:** Only `Failed` messages, max 3 attempts
+- **Response:** `MessageLogDto` with incremented attemptCount
+
+### GET `/api/clinic/messages/{id}`
+- **Response:** Single `MessageLogDto`
+
+### GET `/api/clinic/messages`
+- **Query:** `?pageNumber=1&pageSize=10&templateName=patient_credentials&channel=WhatsApp&status=Sent`
+- **Response:** `PagedResult<MessageLogDto>`
+
+### MessageLogDto
+```json
+{
+  "id": "guid",
+  "templateName": "patient_credentials",
+  "recipientPhone": "+966500000001",
+  "recipientUserId": "guid | null",
+  "channel": "WhatsApp",
+  "status": "Sent",
+  "attemptCount": 1,
+  "lastAttemptAt": "datetime",
+  "sentAt": "datetime | null",
+  "deliveredAt": "datetime | null",
+  "failureReason": "string | null",
+  "variables": "{\"patientName\":\"Ahmad\"}",
+  "createdAt": "datetime"
+}
+```
+
+---
+
+## MODULE: Doctor Notes (Phase 4)
+
+> **Base:** `/api/clinic/doctor-notes`  
+> **Auth:** JWT required  
+> **X-Tenant:** Required  
+> **Purpose:** Doctor-to-reception messaging with read tracking
+
+### POST `/api/clinic/doctor-notes`
+- **Roles:** Doctor
+- **Request:** `{ "message": "Please prepare room 3 for procedure" }`
+- **Validations:** Message cannot be empty, caller must have a Doctor profile
+- **Response:** `DoctorNoteDto` with isRead=false
+
+### GET `/api/clinic/doctor-notes/unread`
+- **Description:** Get all unread notes
+- **Response:** Array of `DoctorNoteDto`
+
+### GET `/api/clinic/doctor-notes`
+- **Query:** `?pageNumber=1&pageSize=10&unreadOnly=true`
+- **Response:** `PagedResult<DoctorNoteDto>`
+
+### POST `/api/clinic/doctor-notes/{id}/read`
+- **Description:** Mark a note as read
+- **Validations:** Cannot re-mark already-read notes
+- **Response:** `DoctorNoteDto` with isRead=true, readAt set
+
+### DoctorNoteDto
+```json
+{
+  "id": "guid",
+  "doctorId": "guid",
+  "doctorName": "Dr. Khaled",
+  "message": "Please prepare room 3",
+  "isRead": false,
+  "readAt": "datetime | null",
+  "readByUserId": "guid | null",
+  "createdAt": "datetime"
+}
+```
+
+---
+
+## MODULE: PWA Notifications (Phase 4)
+
+> **Base:** `/api/clinic/notifications`  
+> **Auth:** JWT required  
+> **X-Tenant:** Required  
+> **Purpose:** PWA push notification subscription management
+
+### POST `/api/clinic/notifications/subscribe`
+- **Feature Flag:** `PwaNotifications` must be enabled
+- **Request:**
+```json
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+  "p256dh": "base64-key",
+  "auth": "base64-auth"
+}
+```
+- **Behavior:** Duplicate endpoint reactivates existing subscription
+- **Response:** `NotificationSubscriptionDto`
+
+### DELETE `/api/clinic/notifications/{id}`
+- **Description:** Unsubscribe (soft delete)
+- **Response:** Success message
+
+### GET `/api/clinic/notifications/my`
+- **Description:** List caller's active subscriptions
+- **Response:** Array of `NotificationSubscriptionDto`
+
+### POST `/api/clinic/notifications/send`
+- **Roles:** ClinicOwner, ClinicManager, Receptionist, Doctor, SuperAdmin
+- **Request:**
+```json
+{
+  "userId": "guid",
+  "title": "Medication Reminder",
+  "body": "Time for your medication",
+  "templateName": "medication_reminder (optional)"
+}
+```
+- **Validations:** Target user must have an active subscription
+- **Response:** `MessageLogDto` (logged as PWA channel)
+
+---
+
+## ENUMS (Phase 4)
+
+### BookingStatus
+| Value | Description |
+|-------|-------------|
+| `Confirmed` | Booking confirmed and active |
+| `Cancelled` | Booking cancelled by patient or staff |
+| `Rescheduled` | Booking rescheduled (transitional, auto-confirmed) |
+| `Completed` | Booking completed (linked to visit) |
+
+### MessageChannel
+| Value | Description |
+|-------|-------------|
+| `WhatsApp` | WhatsApp message via template |
+| `PWA` | PWA push notification |
+
+### MessageStatus
+| Value | Description |
+|-------|-------------|
+| `Pending` | Queued, not yet sent |
+| `Sending` | Currently being sent |
+| `Sent` | Successfully sent |
+| `Delivered` | Confirmed delivered |
+| `Read` | Confirmed read by recipient |
+| `Failed` | Send attempt failed |
+| `Retrying` | Retry in progress |
+
+---
+
 ## FUTURE PHASES
 
 Endpoint documentation will be added as each phase is implemented. No aspirational or preview content.
 
-- **Phase 4:** WhatsApp messaging, online booking, public SEO, PWA notifications
 - **Phase 5:** Reporting, export, platform audit, analytics, SignalR, full seed
 
 ---

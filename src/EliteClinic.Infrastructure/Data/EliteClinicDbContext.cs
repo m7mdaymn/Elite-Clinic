@@ -36,6 +36,12 @@ public class EliteClinicDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<Payment> Payments { get; set; }
     public DbSet<Expense> Expenses { get; set; }
 
+    // Phase 4 entities
+    public DbSet<MessageLog> MessageLogs { get; set; }
+    public DbSet<Booking> Bookings { get; set; }
+    public DbSet<DoctorNote> DoctorNotes { get; set; }
+    public DbSet<NotificationSubscription> NotificationSubscriptions { get; set; }
+
     public EliteClinicDbContext(DbContextOptions<EliteClinicDbContext> options, ITenantContext? tenantContext = null)
         : base(options)
     {
@@ -369,6 +375,75 @@ public class EliteClinicDbContext : IdentityDbContext<ApplicationUser, Applicati
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // === Phase 4 Entity Configurations ===
+
+        // MessageLog entity configuration
+        builder.Entity<MessageLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TemplateName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RecipientPhone).HasMaxLength(20);
+            entity.Property(e => e.Channel).HasConversion<int>();
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.FailureReason).HasMaxLength(1000);
+            entity.Property(e => e.Variables).HasMaxLength(4000);
+        });
+
+        // Booking entity configuration
+        builder.Entity<Booking>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.Notes).HasMaxLength(500);
+            entity.Property(e => e.CancellationReason).HasMaxLength(500);
+
+            entity.HasOne(e => e.Patient)
+                .WithMany()
+                .HasForeignKey(e => e.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Doctor)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.DoctorService)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorServiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.QueueTicket)
+                .WithMany()
+                .HasForeignKey(e => e.QueueTicketId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // DoctorNote entity configuration
+        builder.Entity<DoctorNote>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(2000);
+
+            entity.HasOne(e => e.Doctor)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // NotificationSubscription entity configuration
+        builder.Entity<NotificationSubscription>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Endpoint).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.P256dh).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Auth).IsRequired().HasMaxLength(500);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Global query filter for tenant-scoped entities
         // Uses property reference so EF Core parameterizes per-query (not captured once at model build)
         builder.Entity<ClinicSettings>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
@@ -386,6 +461,12 @@ public class EliteClinicDbContext : IdentityDbContext<ApplicationUser, Applicati
         builder.Entity<Invoice>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
         builder.Entity<Payment>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
         builder.Entity<Expense>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+
+        // Phase 4 query filters
+        builder.Entity<MessageLog>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<Booking>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<DoctorNote>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
+        builder.Entity<NotificationSubscription>().HasQueryFilter(e => !e.IsDeleted && e.TenantId == CurrentTenantId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

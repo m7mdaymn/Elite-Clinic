@@ -1,8 +1,8 @@
 # FRONTEND_CONTRACT.md — API Contract for Frontend Integration
 
-> **Version:** 3.0  
-> **Last Updated:** 2026-02-08  
-> **Status:** Phase 1, 2 & 3 Complete
+> **Version:** 4.0  
+> **Last Updated:** 2026-02-07  
+> **Status:** Phase 1, 2, 3 & 4 Complete
 
 ---
 
@@ -702,7 +702,19 @@ PUT /api/platform/feature-flags/{tenantId}
 | **Follow-up date** | Set via `PUT /api/clinic/visits/{id}` with `followUpDate`. Frontend should display follow-up reminders. |
 
 ### Phase 4 — Communication & Booking
-> Will be expanded when Phase 4 is implemented.
+
+| Topic | Guidance |
+|-------|----------|
+| **Public SEO pages** | `GET /api/public/{slug}/clinic`, `/doctors`, `/services`, `/working-hours`. NO auth, NO `X-Tenant` header. Use for public clinic landing pages and SEO. Non-existent slugs return `success=true` with null/empty data. |
+| **Online booking** | `POST /api/clinic/bookings` with `doctorId`, `bookingDate` (YYYY-MM-DD), `bookingTime` (HH:mm). Gated by `OnlineBooking` feature flag AND `BookingEnabled` clinic setting. Duplicate check: same doctor+date+time is rejected. |
+| **Booking lifecycle** | Create → Confirmed. Cancel → Cancelled (within cancellation window from settings). Reschedule → Confirmed (auto re-confirmed). Show status with `BookingDto.status`. |
+| **Patient bookings** | `GET /api/clinic/bookings/my` returns authenticated patient's bookings. Staff uses `GET /api/clinic/bookings` with pagination and filters (`?doctorId=...&status=Confirmed`). |
+| **WhatsApp messages** | `POST /api/clinic/messages/send` queues messages. Simulated sending (no real API). Template names must match MESSAGE_SPEC.md (10 valid names). `channel` is `WhatsApp` or `PWA`. Staff/doctors only, patients cannot send. |
+| **Message filtering** | `GET /api/clinic/messages?templateName=...&channel=WhatsApp&status=Sent&pageSize=10`. All filters optional. Returns `PagedResult<MessageLogDto>`. |
+| **Doctor notes** | `POST /api/clinic/doctor-notes` (Doctor role only). `GET /api/clinic/doctor-notes/unread` for reception dashboard. `POST /api/clinic/doctor-notes/{id}/read` to mark read. Once read, cannot re-mark. |
+| **PWA notifications** | `POST /api/clinic/notifications/subscribe` with endpoint, p256dh, auth. Duplicate endpoint reactivates. Gated by `PwaNotifications` feature flag. `POST /api/clinic/notifications/send` sends to user by userId. |
+| **Enums** | `BookingStatus`: Confirmed, Cancelled, Rescheduled, Completed. `MessageChannel`: WhatsApp, PWA. `MessageStatus`: Pending, Sending, Sent, Delivered, Read, Failed, Retrying. All serialize as strings. |
+| **Feature flag checks** | Before showing booking UI, check `OnlineBooking` flag. Before showing PWA subscribe, check `PwaNotifications` flag. Both accessible via `GET /api/platform/feature-flags/{tenantId}`. |
 
 ### Phase 5 — Analytics, Audit & Final
 > Will be expanded when Phase 5 is implemented.

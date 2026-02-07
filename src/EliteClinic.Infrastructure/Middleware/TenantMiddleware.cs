@@ -133,6 +133,7 @@ public class TenantMiddleware
         var publicPaths = new[]
         {
             "/api/health",
+            "/api/public",
             "/swagger",
             "/api-docs"
         };
@@ -143,9 +144,10 @@ public class TenantMiddleware
     private bool RequiresTenant(string path)
     {
         // These routes require tenant header (all tenant-scoped routes)
-        // Exclude platform routes
+        // Exclude platform routes and public routes
         var isPlatformRoute = path.StartsWith("/api/platform", StringComparison.OrdinalIgnoreCase) ||
                               path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase) ||
+                              path.StartsWith("/api/public", StringComparison.OrdinalIgnoreCase) ||
                               path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase) ||
                               path.StartsWith("/api/health", StringComparison.OrdinalIgnoreCase);
 

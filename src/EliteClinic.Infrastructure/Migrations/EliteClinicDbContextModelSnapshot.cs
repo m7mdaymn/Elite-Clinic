@@ -196,6 +196,72 @@ namespace EliteClinic.Infrastructure.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("EliteClinic.Domain.Entities.Booking", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("BookingDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeSpan>("BookingTime")
+                        .HasColumnType("time");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DoctorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("DoctorServiceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("QueueTicketId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("DoctorServiceId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("QueueTicketId");
+
+                    b.ToTable("Bookings");
+                });
+
             modelBuilder.Entity("EliteClinic.Domain.Entities.ClinicSettings", b =>
                 {
                     b.Property<Guid>("Id")
@@ -320,6 +386,51 @@ namespace EliteClinic.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Doctors");
+                });
+
+            modelBuilder.Entity("EliteClinic.Domain.Entities.DoctorNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DoctorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ReadByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoctorId");
+
+                    b.ToTable("DoctorNotes");
                 });
 
             modelBuilder.Entity("EliteClinic.Domain.Entities.DoctorService", b =>
@@ -645,6 +756,122 @@ namespace EliteClinic.Infrastructure.Migrations
                     b.HasIndex("VisitId");
 
                     b.ToTable("LabRequests");
+                });
+
+            modelBuilder.Entity("EliteClinic.Domain.Entities.MessageLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastAttemptAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RecipientPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("RecipientUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TemplateName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Variables")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MessageLogs");
+                });
+
+            modelBuilder.Entity("EliteClinic.Domain.Entities.NotificationSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("NotificationSubscriptions");
                 });
 
             modelBuilder.Entity("EliteClinic.Domain.Entities.Patient", b =>
@@ -1358,6 +1585,39 @@ namespace EliteClinic.Infrastructure.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("EliteClinic.Domain.Entities.Booking", b =>
+                {
+                    b.HasOne("EliteClinic.Domain.Entities.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EliteClinic.Domain.Entities.DoctorService", "DoctorService")
+                        .WithMany()
+                        .HasForeignKey("DoctorServiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("EliteClinic.Domain.Entities.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EliteClinic.Domain.Entities.QueueTicket", "QueueTicket")
+                        .WithMany()
+                        .HasForeignKey("QueueTicketId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("DoctorService");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("QueueTicket");
+                });
+
             modelBuilder.Entity("EliteClinic.Domain.Entities.ClinicSettings", b =>
                 {
                     b.HasOne("EliteClinic.Domain.Entities.Tenant", "Tenant")
@@ -1378,6 +1638,17 @@ namespace EliteClinic.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("EliteClinic.Domain.Entities.DoctorNote", b =>
+                {
+                    b.HasOne("EliteClinic.Domain.Entities.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Doctor");
                 });
 
             modelBuilder.Entity("EliteClinic.Domain.Entities.DoctorService", b =>
@@ -1460,6 +1731,17 @@ namespace EliteClinic.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Visit");
+                });
+
+            modelBuilder.Entity("EliteClinic.Domain.Entities.NotificationSubscription", b =>
+                {
+                    b.HasOne("EliteClinic.Domain.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("EliteClinic.Domain.Entities.Patient", b =>

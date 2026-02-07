@@ -1,8 +1,8 @@
 # PERMISSIONS_MATRIX.md — Role/Action Access Control
 
-> **Version:** 3.0  
-> **Last Updated:** 2026-02-08  
-> **Status:** Phase 1, 2 & 3 Complete
+> **Version:** 4.0  
+> **Last Updated:** 2026-02-07  
+> **Status:** Phase 1, 2, 3 & 4 Complete
 
 ---
 
@@ -168,11 +168,12 @@
 
 | Action | SuperAdmin | ClinicOwner | ClinicManager | Doctor | Patient |
 |--------|-----------|-------------|---------------|--------|---------|
-| Book appointment online | ❌ | ❌ | ❌ | ❌ | ⚙️ (if enabled + account exists) |
-| Cancel booking | ❌ | ✅ | ✅ | ❌ | ⚙️ (within rules) |
-| Reschedule booking | ❌ | ✅ | ✅ | ❌ | ⚙️ (within rules) |
-| View bookings | ❌ | ✅ | ✅ | 🔒 (own) | 🔒 (own) |
-| Configure booking rules | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Book appointment online | ✅ | ✅ | ✅ | ❌ | ✅ (if OnlineBooking flag + BookingEnabled) |
+| Cancel booking | ✅ | ✅ | ✅ | ❌ | ✅ (within cancellation window) |
+| Reschedule booking | ✅ | ✅ | ✅ | ❌ | ✅ (within cancellation window) |
+| View booking by ID | ✅ | ✅ | ✅ | ✅ | ✅ |
+| List all bookings (paginated) | ✅ | ✅ | ✅ | ✅ | ❌ |
+| View own bookings (/my) | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
@@ -180,12 +181,18 @@
 
 | Action | SuperAdmin | ClinicOwner | ClinicManager | Doctor | Patient |
 |--------|-----------|-------------|---------------|--------|---------|
-| View tenant WhatsApp logs | ❌ | ✅ | ❌ | ❌ | ❌ |
-| View cross-tenant WA logs | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Send manual WhatsApp | ❌ | ✅ | ✅ | ❌ | ❌ |
-| Configure WA sender number | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Send WhatsApp/PWA message | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Retry failed message | ✅ | ✅ | ✅ | ✅ | ❌ |
+| View message by ID | ✅ | ✅ | ✅ | ✅ | ❌ |
+| List all messages (paginated) | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Send doctor note to reception | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Receive doctor notes | ❌ | ❌ | ✅ | ❌ | ❌ |
+| View unread doctor notes | ✅ | ✅ | ✅ | ✅ | ❌ |
+| List all doctor notes | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Mark doctor note as read | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Subscribe to push notifications | ✅ | ✅ | ✅ | ✅ | ✅ (if PwaNotifications flag) |
+| Unsubscribe from push | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View own subscriptions | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Send push notification | ✅ | ✅ | ✅ | ✅ | ❌ |
 
 ---
 
@@ -211,7 +218,7 @@
 | View public services | — | — | — | — | — |
 | View public working hours | — | — | — | — | — |
 
-> Public endpoints require NO authentication. They require `X-Tenant` header only. Always return 200.
+> Public endpoints require NO authentication and NO `X-Tenant` header. Accessed via `/api/public/{slug}/...`.
 
 ---
 

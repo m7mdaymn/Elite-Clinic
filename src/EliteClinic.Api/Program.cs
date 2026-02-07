@@ -132,6 +132,13 @@ builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 
+// Phase 4 Services
+builder.Services.AddScoped<IPublicService, PublicService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddScoped<IDoctorNoteService, DoctorNoteService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 // RF06 Fix: Wrap model validation errors in ApiResponse format
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
@@ -784,6 +791,94 @@ async Task SeedPhase3WorkflowAsync(EliteClinicDbContext dbContext)
         TenantId = tenantId, Category = "Rent",
         Amount = 5000m, Notes = "Monthly clinic rent",
         ExpenseDate = now.Date.AddDays(-15), RecordedByUserId = recordedByUserId
+    });
+
+    // === Phase 4 Seed Data ===
+
+    // Enable OnlineBooking feature flag for seed tenant
+    var flags = await dbContext.TenantFeatureFlags
+        .FirstOrDefaultAsync(f => f.TenantId == tenantId && !f.IsDeleted);
+    if (flags != null)
+    {
+        flags.OnlineBooking = true;
+        flags.PwaNotifications = true;
+    }
+
+    // Enable booking in clinic settings
+    var clinicSettings = await dbContext.ClinicSettings.IgnoreQueryFilters()
+        .FirstOrDefaultAsync(cs => cs.TenantId == tenantId && !cs.IsDeleted);
+    if (clinicSettings != null)
+    {
+        clinicSettings.BookingEnabled = true;
+        clinicSettings.WhatsAppSenderNumber = "+966500000001";
+        clinicSettings.SupportWhatsAppNumber = "+966500000002";
+    }
+
+    // Seed a booking (future date)
+    var bookingPatient = patients.FirstOrDefault();
+    if (bookingPatient != null)
+    {
+        var booking = new EliteClinic.Domain.Entities.Booking
+        {
+            TenantId = tenantId,
+            PatientId = bookingPatient.Id,
+            DoctorId = doctor1.Id,
+            DoctorServiceId = doctorServices.First(ds => ds.DoctorId == doctor1.Id).Id,
+            BookingDate = now.Date.AddDays(3),
+            BookingTime = new TimeSpan(10, 0, 0),
+            Status = EliteClinic.Domain.Enums.BookingStatus.Confirmed,
+            Notes = "Seeded booking for testing"
+        };
+        dbContext.Bookings.Add(booking);
+    }
+
+    // Seed message logs
+    dbContext.MessageLogs.Add(new EliteClinic.Domain.Entities.MessageLog
+    {
+        TenantId = tenantId,
+        TemplateName = "patient_credentials",
+        RecipientPhone = patients[0].Phone,
+        RecipientUserId = patients[0].UserId,
+        Channel = EliteClinic.Domain.Enums.MessageChannel.WhatsApp,
+        Status = EliteClinic.Domain.Enums.MessageStatus.Sent,
+        AttemptCount = 1,
+        LastAttemptAt = now.AddHours(-3),
+        SentAt = now.AddHours(-3),
+        Variables = System.Text.Json.JsonSerializer.Serialize(new { patientName = patients[0].Name, clinicName = "Demo Clinic" })
+    });
+
+    dbContext.MessageLogs.Add(new EliteClinic.Domain.Entities.MessageLog
+    {
+        TenantId = tenantId,
+        TemplateName = "queue_ticket_issued",
+        RecipientPhone = patients[1].Phone,
+        RecipientUserId = patients[1].UserId,
+        Channel = EliteClinic.Domain.Enums.MessageChannel.WhatsApp,
+        Status = EliteClinic.Domain.Enums.MessageStatus.Delivered,
+        AttemptCount = 1,
+        LastAttemptAt = now.AddHours(-2),
+        SentAt = now.AddHours(-2),
+        DeliveredAt = now.AddHours(-1.5),
+        Variables = System.Text.Json.JsonSerializer.Serialize(new { patientName = patients[1].Name, ticketNumber = 1, doctorName = doctor1.Name })
+    });
+
+    // Seed a doctor note
+    dbContext.DoctorNotes.Add(new EliteClinic.Domain.Entities.DoctorNote
+    {
+        TenantId = tenantId,
+        DoctorId = doctor1.Id,
+        Message = "Please prepare room 2 for a minor procedure",
+        IsRead = false
+    });
+
+    dbContext.DoctorNotes.Add(new EliteClinic.Domain.Entities.DoctorNote
+    {
+        TenantId = tenantId,
+        DoctorId = doctor2.Id,
+        Message = "Patient X-ray results are ready, please inform the patient",
+        IsRead = true,
+        ReadAt = now.AddMinutes(-30),
+        ReadByUserId = staff?.UserId
     });
 
     await dbContext.SaveChangesAsync();
